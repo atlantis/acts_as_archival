@@ -2,9 +2,6 @@ module ExpectedBehavior
   module ActsAsArchival
     require 'digest/md5'
 
-    ARCHIVED_CONDITIONS = lambda { |zelf| %Q{#{zelf.to_s.tableize}.archived_at IS NOT NULL AND #{zelf.to_s.tableize}.archive_number IS NOT NULL} }
-    UNARCHIVED_CONDITIONS = { :archived_at => nil, :archive_number => nil }
-
     MissingArchivalColumnError = Class.new(ActiveRecord::ActiveRecordError) unless defined?(MissingArchivalColumnError) == 'constant' && MissingArchivalColumnError.class == Class
     CouldNotArchiveError = Class.new(ActiveRecord::ActiveRecordError) unless defined?(CouldNotArchiveError) == 'constant' && CouldNotArchiveError.class == Class
     CouldNotUnarchiveError = Class.new(ActiveRecord::ActiveRecordError) unless defined?(CouldNotUnarchiveError) == 'constant' && CouldNotUnarchiveError.class == Class
@@ -21,9 +18,9 @@ module ExpectedBehavior
           before_validation :raise_if_not_archival
           validate :readonly_when_archived if options[:readonly_when_archived]
 
-          scope :archived, :conditions => ARCHIVED_CONDITIONS.call(self)
-          scope :unarchived, :conditions => UNARCHIVED_CONDITIONS
-          scope :archived_from_archive_number, lambda { |head_archive_number| {:conditions => ['archived_at IS NOT NULL AND archive_number = ?', head_archive_number] } }
+          scope :archived, lambda { |zelf| %Q{#{zelf.to_s.tableize}.archived_at IS NOT NULL AND #{zelf.to_s.tableize}.archive_number IS NOT NULL} }
+          scope :unarchived, lambda { where(archived_at: nil, archive_number: nil) }
+          scope :archived_from_archive_number, lambda { |head_archive_number| where(['archived_at IS NOT NULL AND archive_number = ?', head_archive_number]) }
 
           callbacks = ['archive','unarchive']
           define_callbacks *[callbacks, {:terminator => 'result == false'}].flatten
